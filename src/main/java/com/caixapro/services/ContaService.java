@@ -38,7 +38,10 @@ public class ContaService {
     }
         
     public Conta depositar(Long contaId, double valor) {
-    	Conta conta = contaRepository.findById(contaId).orElseThrow();
+    	Conta conta = checarExistenciaConta(contaId);
+    	
+    	chacarValorNegativo(valor);      	
+    	
         conta.setSaldo(conta.getSaldo() + valor);
         contaRepository.save(conta);
 
@@ -53,10 +56,11 @@ public class ContaService {
     }
     
     public Conta sacar(Long contaId, double valor) {
-    	Conta conta = contaRepository.findById(contaId).orElseThrow();
-        if (conta.getSaldo() < valor) {
-            throw new IllegalArgumentException("Saldo insuficiente");
-        }
+    	Conta conta = checarExistenciaConta(contaId);
+    	
+    	chacarValorNegativo(valor);
+        checarSaldoConta(conta, valor);
+        
         conta.setSaldo(conta.getSaldo() - valor);
         contaRepository.save(conta);
 
@@ -70,22 +74,18 @@ public class ContaService {
         return conta;
     }
     
-    public Conta transferir(Long contaOrigemId, Long contaDestinoId, double valor) {
-    	Conta contaOrigem = contaRepository.findById(contaOrigemId).orElseThrow();
-        //Conta contaDestino = contaRepository.findById(contaDestinoId).orElseThrow();
-
-        if (contaOrigem.getSaldo() < valor) {
-            throw new IllegalArgumentException("Saldo insuficiente");
-        }
-
-        contaOrigem.setSaldo(contaOrigem.getSaldo() - valor);
-        //contaDestino.setSaldo(contaDestino.getSaldo() + valor);
-                
-        depositar(contaDestinoId, valor);
-
-        contaRepository.save(contaOrigem);
-        //contaRepository.save(contaDestino);
-
+    public Conta transferir(Long contaOrigemId, Long contaDestinoId, double valor) {    	
+    	
+    	Conta contaOrigem = checarExistenciaConta(contaOrigemId); 
+    	chacarValorNegativo(valor);
+    	checarSaldoConta(contaOrigem, valor);  
+    	checarExistenciaConta(contaDestinoId);
+    	
+    	contaOrigem.setSaldo(contaOrigem.getSaldo() - valor);    	
+        depositar(contaDestinoId, valor); 	
+    	    	
+        contaRepository.save(contaOrigem);       
+      
         Transacao transacao = new Transacao();
         transacao.setTipo("TRANSFERÊNCIA");
         transacao.setValor(valor);
@@ -98,6 +98,31 @@ public class ContaService {
     
     public List<Transacao> emitirExtrato(Long contaId) {
         return transacaoRepository.findByContaId(contaId);
+    }
+    
+    public void chacarValorNegativo(double valor) {
+    	if(valor < 0 ) {
+    		throw new IllegalArgumentException("Digite um valor válido");
+    	}
+    }
+    
+    public void checarSaldoConta(Conta conta, double valor) {
+    	if (conta.getSaldo() < valor) {
+            throw new IllegalArgumentException("Saldo insuficiente");
+        }
+    }
+    
+    public Conta checarExistenciaConta(Long contaID) {
+    	
+    	try {
+    		contaRepository.findById(contaID).orElseThrow();
+		} catch (Exception e) {
+			throw new IllegalArgumentException("Conta inexistente");
+		}
+    	
+    	Conta conta = contaRepository.findById(contaID).orElseThrow();    	
+    	return conta;
+    	
     }
 
 }
